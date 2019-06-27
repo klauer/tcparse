@@ -352,6 +352,11 @@ class Symbol(_TwincatProjectSubItem):
     and searching.  For example, a function block defined as `FB_MotionStage`
     will become `Symbol_FB_MotionStage`.
     '''
+
+    BitOffs: list
+    BitSize: list
+    BaseType: list
+
     @property
     def module(self):
         'The Module containing the Symbol'
@@ -482,6 +487,8 @@ class POU(_TwincatProjectSubItem):
     '''
 
     # TODO: may fail when mixed with ladder logic?
+    Declaration: list
+    Implementation: list
 
     def get_fully_qualified_name(self, name):
         if '.' in name:
@@ -695,6 +702,9 @@ class Plc(TwincatItem):
     '''
     [XTI] A Plc Project
     '''
+
+    Project: list
+
     def post_init(self):
         self.namespaces = {}
         if hasattr(self, 'Project'):
