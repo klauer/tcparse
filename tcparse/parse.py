@@ -74,6 +74,8 @@ def element_to_class_name(element):
     if tag == 'Symbol':
         base_type, = element.xpath('BaseType')
         return f'{tag}_' + base_type.text, Symbol
+    if os.path.splitext(element.base)[-1].lower() == '.tmc':
+        return tag, _TmcItem
     return tag, TwincatItem
 
 
@@ -279,7 +281,86 @@ class _TwincatProjectSubItem(TwincatItem):
         return ancestor if ancestor else self.find_ancestor(Plc)
 
 
-class Module(TwincatItem):
+class TcModuleClass(_TwincatProjectSubItem):
+    '''
+    [TMC] The top-level TMC file
+    '''
+    ...
+
+
+class _TmcItem(_TwincatProjectSubItem):
+    '''
+    [TMC] Any item found in a TMC file
+    '''
+    @property
+    def tmc(self):
+        'The TcModuleClass (TMC) associated with the item'
+        return self.find_ancestor(TcModuleClass)
+
+
+class DataTypes(_TmcItem):
+    'TMC'
+    def post_init(self):
+        self.types = {
+            dtype.qualified_type: dtype
+            for dtype in self.find(DataType)
+        }
+
+
+class Type(_TmcItem):
+    '''
+    [TMC] DataTypes/DataType/SubItem/Type
+    '''
+
+    @property
+    def qualified_type(self):
+        'The base type, including the namespace'
+        namespace = self.attributes.get("Namespace", None)
+        return f'{namespace}.{self.text}' if namespace else self.text
+
+
+class DataType(_TmcItem):
+    'TMC'
+    Name: list
+    EnumInfo: list
+    SubItem: list
+
+    @property
+    def qualified_type(self):
+        name_attrs = self.Name[0].attributes
+        if 'Namespace' in name_attrs:
+            return f'{name_attrs["Namespace"]}.{self.name}'
+        return self.name
+
+    @property
+    def is_enum(self):
+        return len(getattr(self, 'EnumInfo', [])) > 0
+
+    def walk(self):
+        if not hasattr(self, 'SubItem'):
+            yield [self]
+        else:
+            for subitem in self.SubItem:
+                for item in subitem.walk():
+                    yield [self, subitem] + item
+
+
+class SubItem(_TmcItem):
+    'TMC'
+    Type: list
+
+    def walk(self):
+        data_types = self.find_ancestor(DataTypes).types
+        dtype_name = self.Type[0].qualified_type
+        try:
+            complex_type = data_types[dtype_name]
+        except KeyError:
+            yield []
+        else:
+            yield from complex_type.walk()
+
+
+class Module(_TmcItem):
     '''
     [TMC] A Module
 
@@ -294,13 +375,13 @@ class Module(TwincatItem):
         except AttributeError:
             app_prop, = [prop for prop in self.find(Property)
                          if prop.name == 'ApplicationName']
-            port_text = app_prop.Value[0].text
+            port_text = app_prop.value
             self._ads_port = int(port_text.split('Port_')[1])
 
         return self._ads_port
 
 
-class Property(TwincatItem):
+class Property(_TmcItem):
     '''
     [TMC] A property containing a key/value pair
 
@@ -311,7 +392,20 @@ class Property(TwincatItem):
           GeneratedCodeSize
           GlobalDataSize
     '''
-    ...
+    Value: list
+
+    @property
+    def key(self):
+        'The property key name'
+        return self.name
+
+    @property
+    def value(self):
+        'The property value text'
+        return self.Value[0].text if hasattr(self, 'Value') else self.text
+
+    def __repr__(self):
+        return f'<Property {self.key}={self.value!r}>'
 
 
 class OwnerA(TwincatItem):
@@ -335,7 +429,7 @@ class Link(TwincatItem):
         self.b = (self.find_ancestor(OwnerB).name, self.attributes.get('VarB'))
 
 
-class Symbol(_TwincatProjectSubItem):
+class Symbol(_TmcItem):
     '''
     [TMC] A basic Symbol type
 
@@ -370,9 +464,20 @@ class Symbol(_TwincatProjectSubItem):
         return dict(name=self.name,
                     bit_size=self.BitSize[0].text,
                     base_type=self.base_type,
+                    qualified_base_type=self.qualified_base_type,
                     bit_offs=self.BitOffs[0].text,
                     module=self.module.name,
                     )
+
+    def walk(self):
+        data_types = self.tmc.DataTypes[0].types
+        try:
+            complex_type = data_types[self.qualified_base_type]
+        except KeyError:
+            yield [self]
+        else:
+            for item in complex_type.walk():
+                yield [self] + item
 
 
 class Symbol_FB_MotionStage(Symbol):

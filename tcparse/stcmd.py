@@ -165,9 +165,9 @@ def render(args):
 
     if pytmc is not None:
         pytmc_info = {
-            motor: [PytmcConfiguration(prop.Value[0].text)
+            motor: [PytmcConfiguration(prop.value)
                     for prop in motor.find(Property)
-                    if prop.name == 'pytmc'
+                    if prop.key == 'pytmc'
                     ]
             for motor, _ in motors
         }
