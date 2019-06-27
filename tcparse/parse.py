@@ -358,6 +358,18 @@ class Symbol(_TwincatProjectSubItem):
     BaseType: list
 
     @property
+    def base_type(self):
+        'The base type'
+        return self.BaseType[0].text
+
+    @property
+    def qualified_base_type(self):
+        'The base type, including the namespace'
+        base_type = self.BaseType[0]
+        namespace = base_type.attributes.get("Namespace", None)
+        return f'{namespace}.{base_type.text}' if namespace else base_type.text
+
+    @property
     def module(self):
         'The Module containing the Symbol'
         return self.find_ancestor(Module)
@@ -366,7 +378,7 @@ class Symbol(_TwincatProjectSubItem):
     def info(self):
         return dict(name=self.name,
                     bit_size=self.BitSize[0].text,
-                    base_type=self.BaseType[0].text,
+                    base_type=self.base_type,
                     bit_offs=self.BitOffs[0].text,
                     module=self.module.name,
                     )
