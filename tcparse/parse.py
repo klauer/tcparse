@@ -8,17 +8,11 @@ import types
 import lxml
 import lxml.etree
 
-
+# Registry of all TwincatItem-based classes
 TWINCAT_TYPES = {}
 USE_FILE_AS_PATH = object()
 
 logger = logging.getLogger(__name__)
-
-
-def _register_type(cls):
-    'Decorator to register a TwincatItem-based class'
-    TWINCAT_TYPES[cls.__name__] = cls
-    return cls
 
 
 def separate_children_by_tag(children):
@@ -111,6 +105,10 @@ class TwincatItem:
 
         self._add_children(element)
         self.post_init()
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        TWINCAT_TYPES[cls.__name__] = cls
 
     def post_init(self):
         'Hook for subclasses; called after __init__'
@@ -232,7 +230,6 @@ class TwincatItem:
         except KeyError:
             # Dynamically create and register new TwincatItem-based types!
             cls = type(classname, (base, ), {})
-            _register_type(cls)
 
         if 'File' in element.attrib:
             # This is defined directly in the file. Instantiate it as-is:
@@ -282,7 +279,6 @@ class _TwincatProjectSubItem(TwincatItem):
         return ancestor if ancestor else self.find_ancestor(Plc)
 
 
-@_register_type
 class Module(TwincatItem):
     '''
     [TMC] A Module
@@ -304,7 +300,6 @@ class Module(TwincatItem):
         return self._ads_port
 
 
-@_register_type
 class Property(TwincatItem):
     '''
     [TMC] A property containing a key/value pair
@@ -319,7 +314,6 @@ class Property(TwincatItem):
     ...
 
 
-@_register_type
 class OwnerA(TwincatItem):
     '''
     [XTC] For a Link between VarA and VarB, this is the parent of VarA
@@ -327,7 +321,6 @@ class OwnerA(TwincatItem):
     ...
 
 
-@_register_type
 class OwnerB(TwincatItem):
     '''
     [XTC] For a Link between VarA and VarB, this is the parent of VarB
@@ -335,7 +328,6 @@ class OwnerB(TwincatItem):
     ...
 
 
-@_register_type
 class Link(TwincatItem):
     '[XTI] Links between NC/PLC/IO'
     def post_init(self):
@@ -343,7 +335,6 @@ class Link(TwincatItem):
         self.b = (self.find_ancestor(OwnerB).name, self.attributes.get('VarB'))
 
 
-@_register_type
 class Symbol(_TwincatProjectSubItem):
     '''
     [TMC] A basic Symbol type
@@ -384,7 +375,6 @@ class Symbol(_TwincatProjectSubItem):
                     )
 
 
-@_register_type
 class Symbol_FB_MotionStage(Symbol):
     '''
     [TMC] A customized Symbol, representing only FB_MotionStage
@@ -484,7 +474,6 @@ class Symbol_FB_MotionStage(Symbol):
         return nc_axis
 
 
-@_register_type
 class GVL(_TwincatProjectSubItem):
     '''
     [XTI] A Global Variable List
@@ -492,7 +481,6 @@ class GVL(_TwincatProjectSubItem):
     ...
 
 
-@_register_type
 class POU(_TwincatProjectSubItem):
     '''
     [XTI] A Program Organization Unit
@@ -538,7 +526,6 @@ class POU(_TwincatProjectSubItem):
         return variables_from_declaration(self.declaration)
 
 
-@_register_type
 class AxisPara(TwincatItem):
     '''
     [XTI] Axis Parameters
@@ -548,7 +535,6 @@ class AxisPara(TwincatItem):
     ...
 
 
-@_register_type
 class NC(TwincatItem):
     '''
     [tsproj or XTI] Top-level NC
@@ -574,7 +560,6 @@ class NC(TwincatItem):
         }
 
 
-@_register_type
 class Axis(TwincatItem):
     '''
     [XTI] A single NC axis
@@ -617,7 +602,6 @@ class Axis(TwincatItem):
                 yield f'Enc:{key}', value
 
 
-@_register_type
 class EncPara(TwincatItem):
     '''
     [XTI] Encoder parameters
@@ -628,7 +612,6 @@ class EncPara(TwincatItem):
     ...
 
 
-@_register_type
 class Encoder(TwincatItem):
     '''
     [XTI] Encoder
@@ -644,7 +627,6 @@ class Encoder(TwincatItem):
                     yield f'{child.tag}:{key}', value
 
 
-@_register_type
 class Project(TwincatItem):
     '''
     [tsproj] A project which contains Plc, Io, Mappings, etc.
@@ -669,7 +651,6 @@ class Project(TwincatItem):
         return ams_id  # :(
 
 
-@_register_type
 class TcSmProject(TwincatItem):
     '''
     [tsproj] A top-level TwinCAT tsproj
@@ -681,7 +662,6 @@ class TcSmProject(TwincatItem):
                 if plc.project is not None]
 
 
-@_register_type
 class TcSmItem(TwincatItem):
     '''
     [XTI] Top-level container for XTI files
@@ -693,7 +673,6 @@ class TcSmItem(TwincatItem):
     ...
 
 
-@_register_type
 class Device(TwincatItem):
     '''
     [XTI] Top-level IO device container
@@ -701,7 +680,6 @@ class Device(TwincatItem):
     _load_path = pathlib.Path('_Config') / 'IO'
 
 
-@_register_type
 class Box(TwincatItem):
     '''
     [XTI] A box / module
@@ -709,7 +687,6 @@ class Box(TwincatItem):
     _load_path = USE_FILE_AS_PATH
 
 
-@_register_type
 class Plc(TwincatItem):
     '''
     [XTI] A Plc Project
@@ -782,7 +759,6 @@ class Plc(TwincatItem):
             yield from self.tmc.find(cls)
 
 
-@_register_type
 class TcSmItem_CNestedPlcProjDef(TcSmItem, Plc):
     '''
     [XTI] Nested PLC project definition (i.e., a virtual PLC project)
@@ -792,7 +768,6 @@ class TcSmItem_CNestedPlcProjDef(TcSmItem, Plc):
     ...
 
 
-@_register_type
 class Compile(TwincatItem):
     '''
     [XTI] A code entry in a nested/virtual PLC project
@@ -803,7 +778,6 @@ class Compile(TwincatItem):
     ...
 
 
-@_register_type
 class RemoteConnections(TwincatItem):
     '''
     [StaticRoutes] Routes contained in the TwinCat configuration
