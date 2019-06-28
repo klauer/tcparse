@@ -21,7 +21,7 @@ else:
     from pytmc.xml_obj import Configuration as PytmcConfiguration
     from pytmc.bin.pytmc import process as pytmc_process, LinterError
 
-from .parse import load_project, Symbol_FB_MotionStage, Property, Project
+from .parse import parse, Symbol_FB_MotionStage, Property, Project
 
 
 description = __doc__
@@ -128,7 +128,7 @@ def render(args):
 
     template = jinja_env.get_template(args.template)
 
-    project = load_project(args.tsproj_project)
+    project = parse(args.tsproj_project)
     motors = [(motor, motor.nc_axis)
               for motor in project.find(Symbol_FB_MotionStage)]
 

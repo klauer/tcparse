@@ -1,7 +1,7 @@
 import pytest
 import pathlib
 
-from .. import load_project
+from .. import parse
 
 
 TEST_ROOT = pathlib.Path(__file__).parent
@@ -14,4 +14,4 @@ def project_filename(request):
 
 @pytest.fixture(scope='function')
 def project(project_filename):
-    return load_project(project_filename)
+    return parse(project_filename)

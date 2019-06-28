@@ -8,7 +8,7 @@ import ast
 import logging
 import pathlib
 
-from . import parse as parse_mod
+import tcparse
 
 DESCRIPTION = __doc__
 
@@ -77,7 +77,7 @@ def summary(args):
     logging.basicConfig()
 
     proj_path = pathlib.Path(args.tsproj_project)
-    project = parse_mod.load_project(proj_path)
+    project = tcparse.parse(proj_path)
 
     if args.plcs or args.all:
         for i, plc in enumerate(project.plcs, 1):
@@ -99,13 +99,13 @@ def summary(args):
 
     if args.symbols or args.all:
         print('--- Symbols:')
-        for symbol in project.find(parse_mod.Symbol):
+        for symbol in project.find(tcparse.Symbol):
             print(f'    {symbol.info}')
         print()
 
     if args.nc or args.all:
         print('--- NC axes:')
-        for nc in project.find(parse_mod.NC):
+        for nc in project.find(tcparse.NC):
             for axis_id, axis in sorted(nc.axis_by_id.items()):
                 print(f'    {axis_id}.) {axis.short_name!r}:')
                 for category, info in axis.summarize():
@@ -118,7 +118,7 @@ def summary(args):
 
     if args.links or args.all:
         print('--- Links:')
-        for i, link in enumerate(project.find(parse_mod.Link), 1):
+        for i, link in enumerate(project.find(tcparse.Link), 1):
             print(f'    {i}.) A {link.a}')
             print(f'          B {link.b}')
         print()

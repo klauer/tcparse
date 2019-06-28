@@ -1137,22 +1137,6 @@ def get_pou_call_blocks(declaration, implementation):
     return dict(blocks)
 
 
-def load_project(fn):
-    '''
-    Load a tsproj file
-
-    Returns
-    -------
-    project : Project
-        The top-level Visual Studio project
-    '''
-    fn = pathlib.Path(fn)
-    if fn.suffix.lower() != '.tsproj':
-        raise ValueError('Expected a .tsproj file')
-
-    return parse(fn)
-
-
 def case_insensitive_path(path):
     '''
     Match a path in a case-insensitive manner, returning the actual filename as
