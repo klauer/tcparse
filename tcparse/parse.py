@@ -286,6 +286,12 @@ class TcModuleClass(_TwincatProjectSubItem):
     [TMC] The top-level TMC file
     '''
     ...
+    def get_data_type(self, type_name):
+        data_types = self.DataTypes[0].types
+        try:
+            return data_types[type_name]
+        except KeyError:
+            return BuiltinDataType(type_name)
 
 
 class _TmcItem(_TwincatProjectSubItem):
@@ -344,20 +350,46 @@ class DataType(_TmcItem):
                 for item in subitem.walk():
                     yield [self, subitem] + item
 
+    @property
+    def enum_dict(self):
+        return {int(item.enum_value): item.enum_text
+                for item in getattr(self, 'EnumInfo', [])}
+
+    @property
+    def is_enum(self):
+        return len(getattr(self, 'EnumInfo', [])) > 0
+
+    @property
+    def is_array(self):
+        return len(getattr(self, 'ArrayInfo', [])) > 0
+
+    @property
+    def is_string(self):
+        return False
+
 
 class SubItem(_TmcItem):
     'TMC'
     Type: list
 
+    @property
+    def data_type_class(self):
+        return self.tmc.get_data_type(self.qualified_base_type)
+
+    @property
+    def base_type(self):
+        'The base type'
+        return self.Type[0].text
+
+    @property
+    def qualified_base_type(self):
+        'The base type, including the namespace'
+        base_type = self.Type[0]
+        namespace = base_type.attributes.get("Namespace", None)
+        return f'{namespace}.{base_type.text}' if namespace else base_type.text
+
     def walk(self):
-        data_types = self.find_ancestor(DataTypes).types
-        dtype_name = self.Type[0].qualified_type
-        try:
-            complex_type = data_types[dtype_name]
-        except KeyError:
-            yield []
-        else:
-            yield from complex_type.walk()
+        yield from self.data_type_class.walk()
 
 
 class Module(_TmcItem):
@@ -453,6 +485,10 @@ class Symbol(_TmcItem):
         base_type = self.BaseType[0]
         namespace = base_type.attributes.get("Namespace", None)
         return f'{namespace}.{base_type.text}' if namespace else base_type.text
+
+    @property
+    def data_type_class(self):
+        return self.tmc.get_data_type(self.qualified_base_type)
 
     @property
     def module(self):
