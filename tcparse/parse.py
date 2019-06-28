@@ -325,6 +325,24 @@ class Type(_TmcItem):
         return f'{namespace}.{self.text}' if namespace else self.text
 
 
+class EnumInfo(_TmcItem):
+    Text: list
+    Enum: list
+    Comment: list
+
+    @property
+    def enum_text(self):
+        return self.Text[0].text
+
+    @property
+    def enum_value(self):
+        return self.Enum[0].text
+
+    @property
+    def enum_comment(self):
+        return self.Comment[0].text if hasattr(self, 'Comment') else ''
+
+
 class DataType(_TmcItem):
     'TMC'
     Name: list
@@ -337,10 +355,6 @@ class DataType(_TmcItem):
         if 'Namespace' in name_attrs:
             return f'{name_attrs["Namespace"]}.{self.name}'
         return self.name
-
-    @property
-    def is_enum(self):
-        return len(getattr(self, 'EnumInfo', [])) > 0
 
     def walk(self):
         if not hasattr(self, 'SubItem'):
@@ -461,6 +475,26 @@ class Link(TwincatItem):
         self.b = (self.find_ancestor(OwnerB).name, self.attributes.get('VarB'))
 
 
+class BuiltinDataType:
+    def __init__(self, typename):
+        self.typename = typename
+
+    @property
+    def is_enum(self):
+        return len(getattr(self, 'EnumInfo', [])) > 0
+
+    @property
+    def is_string(self):
+        return self.typename == 'STRING' or self.typename.startswith('STRING(')
+
+    @property
+    def is_array(self):
+        return len(getattr(self, 'ArrayInfo', [])) > 0
+
+    def walk(self):
+        yield []
+
+
 class Symbol(_TmcItem):
     '''
     [TMC] A basic Symbol type
@@ -506,14 +540,8 @@ class Symbol(_TmcItem):
                     )
 
     def walk(self):
-        data_types = self.tmc.DataTypes[0].types
-        try:
-            complex_type = data_types[self.qualified_base_type]
-        except KeyError:
-            yield [self]
-        else:
-            for item in complex_type.walk():
-                yield [self] + item
+        for item in self.data_type_class.walk():
+            yield [self] + item
 
 
 class Symbol_FB_MotionStage(Symbol):
